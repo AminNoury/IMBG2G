@@ -17,5 +17,10 @@ AUG_FEATURE_MASK = True          # Enable feature masking
 FEATURE_MASK_RATIO = 0.1         # Ratio of features to mask
 
 
-# ----- Model Level -----
-RUN_G2G = False
+# ==================== G2G SETTINGS ====================
+RUN_G2G = True
+
+G2G_USE_KNN_GRAPH = True     # build graph-of-graphs edges
+G2G_USE_MESSAGE_PASSING = True  # run GNN on graph-of-graphs
+G2G_K = 5                    # number of neighbors between graphs
+G2G_HIDDEN_DIM = 64

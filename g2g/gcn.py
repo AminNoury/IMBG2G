@@ -22,12 +22,18 @@ class GCN(nn.Module):
         self.conv2 = GCNConv(hidden_channels, hidden_channels)
         self.fc = nn.Linear(hidden_channels, out_channels)
 
-    def forward(self, data):
+    def forward(self, data, return_embedding=False):
         x, edge_index, batch = data.x, data.edge_index, data.batch
+
         x = F.relu(self.conv1(x, edge_index))
         x = F.relu(self.conv2(x, edge_index))
-        x = global_mean_pool(x, batch)
-        return self.fc(x)
+
+        graph_emb = global_mean_pool(x, batch)  # graph-level embedding
+        logits = self.fc(graph_emb)
+
+        if return_embedding:
+            return logits, graph_emb
+        return logits
 
 
 model = GCN(

@@ -43,8 +43,14 @@ def run_experiment(name, dataset, device):
     print(model)
     print(f"Total trainable parameters: {sum(p.numel() for p in model.parameters())}")
 
+    # ------------------------
+    # G2G Log
+    # ------------------------
     if setting.RUN_G2G:
-        print("G2G Module ENABLED (placeholder)")
+        print("G2G Module ENABLED")
+        print(f"G2G USE KNN Graph: {setting.G2G_USE_KNN_GRAPH}")
+        print(f"G2G USE Message Passing: {setting.G2G_USE_MESSAGE_PASSING}")
+        print(f"G2G K: {setting.G2G_K}, G2G Hidden Dim: {setting.G2G_HIDDEN_DIM}")
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.005, weight_decay=5e-4)
     print(f"Optimizer: Adam | LR: {optimizer.param_groups[0]['lr']} | Weight decay: 5e-4")
@@ -92,6 +98,17 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # ------------------------
+    # G2G Settings
+    # ------------------------
+    setting.RUN_G2G = False                 # False: off, True: on
+    setting.G2G_USE_KNN_GRAPH = True
+    setting.G2G_USE_MESSAGE_PASSING = True
+    setting.G2G_K = 5
+    setting.G2G_HIDDEN_DIM = 64
+
+    results = {}
+
+    # ------------------------
     # Baseline Experiments
     # ------------------------
     baseline_experiments = [
@@ -100,13 +117,11 @@ def main():
         "baseline+imbalance+focal"
     ]
 
-    results = {}
-
-    # 1️⃣ Run baseline & imbalance experiments without any augmentation
     for exp_name in baseline_experiments:
         setting.AUG_NODE_DROP = False
         setting.AUG_EDGE_PERTURB = False
         setting.AUG_FEATURE_MASK = False
+        setting.RUN_G2G = False
         results[exp_name] = run_experiment(exp_name, dataset, device)
 
     # ------------------------
@@ -123,8 +138,28 @@ def main():
         setting.AUG_NODE_DROP = "NodeDrop" in combo
         setting.AUG_EDGE_PERTURB = "EdgePerturb" in combo
         setting.AUG_FEATURE_MASK = "FeatureMask" in combo
+        setting.RUN_G2G = False
 
         exp_name = f"Aug-{'+'.join(combo)}"
+        results[exp_name] = run_experiment(exp_name, dataset, device)
+
+    # ------------------------
+    # G2G Experiments
+    # ------------------------
+    g2g_experiments = [
+        ("baseline+G2G", False),        # baseline + G2G
+    ]
+
+    # Add G2G + Augmentation combos
+    for combo in aug_combos:
+        g2g_experiments.append(("+".join(["G2G"] + list(combo)), True))
+
+    for exp_name, run_g2g in g2g_experiments:
+        setting.RUN_G2G = run_g2g
+        setting.AUG_NODE_DROP = "NodeDrop" in exp_name
+        setting.AUG_EDGE_PERTURB = "EdgePerturb" in exp_name
+        setting.AUG_FEATURE_MASK = "FeatureMask" in exp_name
+
         results[exp_name] = run_experiment(exp_name, dataset, device)
 
     # ------------------------
@@ -132,7 +167,7 @@ def main():
     # ------------------------
     print("\n===== FINAL COMPARISON =====")
     for k, v in results.items():
-        print(f"{k:30s} → Acc: {v[0]:.4f}, F1: {v[1]:.4f}")
+        print(f"{k:40s} → Acc: {v[0]:.4f}, F1: {v[1]:.4f}")
 
 
 if __name__ == "__main__":
